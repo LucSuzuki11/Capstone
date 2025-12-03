@@ -14,10 +14,11 @@ AccelStepper Z(AccelStepper::DRIVER, Z_STEP,   Z_DIR);
 AccelStepper VAL(AccelStepper::DRIVER, VAL_STEP, VAL_DIR);
 MultiStepper steppers;
 
+unsigned long previousMillis = 0;
+unsigned long interval = 5000; // mil
+
 // ===== Plotter Object =====
 Plotter plotter(X, Y, Z, VAL, steppers);
-
-bool shapeMade = false;
 
 void setup()
 {
@@ -25,26 +26,37 @@ void setup()
   Serial1.begin(9600);
   Serial2.begin(9600);
 
-  // Init subsystems
-  HMI_init(); // HMI Initialized
+  // ===== Initialize Subsystems =====
+  HMI_init();
+  Cloud_init();
 
-  Cloud_init(); // Cloud Initialized
-
-  plotter.begin(); // Plotter Initialized
+   // Initialize the Plotter
+  plotter.begin(); 
   plotter.enableDrivers(true);
   plotter.goHome();
 }
 
 void loop()
 {
-
-
   HMI_poll(); // Poll the HMI
-  checkClient();
+  checkClient(); // Check the Client
+  if (millis() -  previousMillis > interval){
+    previousMillis += interval;
+    Cloud_sendData();
+  }
 
-  // ===== Handle start requests =====
+  // if (!client.connected())
+  // {
+  //   cloudReconnect();
+  // }
+  // if (!client.loop()){
+  //   client.connect("ESP8266Client");
+  // }
+    
+  // Publish the data to the associated topics
 
-  if (HMI_batchRequested())
+  // ===== Handle Design Start Requests =====
+  if (HMI_batchRequested()) // Batching
   {
     HMI_clearDesignRequests();
 
@@ -60,51 +72,46 @@ void loop()
       PAN_RADIUS_STEPS,    // radius
       SITE_SPACING_STEPS,  // spacing between points
       PAN_EDGE_MARGIN_STEPS,
-      1000,                // valve open time per site (ms)
+      DISPENSE_MS,                // valve open time per site (ms)
       HEX_START_ANGLE_RAD  // starting angle
     );
     plotter.closeValve();
-    Cloud_sendData();
+    //Cloud_sendData();
   }
 
-  if (HMI_squareRequested())
+  if (HMI_squareRequested()) // Square
   {
     HMI_clearDesignRequests();
 
     Serial.println("Drawing square...");
     Point square[4];
     plotter.makeSquareShape(SQUARE_SIZE_STEPS, square);
-    plotter.tracePath(square, 4);
+    plotter.tracePath(square, 4, 0);
     plotter.closeValve();
-    Cloud_sendData();
-    delay(1000);
+    //Cloud_sendData();
+    //delay(1000);
   }
 
-  if (HMI_triangleRequested())
+  if (HMI_triangleRequested()) // Triangle
   {
     HMI_clearDesignRequests();
 
     Serial.println("Drawing triangle...");
     Point triangle[3];
     plotter.makeTriangleShape(TRI_SIDE_STEPS, triangle);
-    plotter.tracePath(triangle, 3);
+    plotter.tracePath(triangle, 3, 1);
     plotter.closeValve();
-    Cloud_sendData();
-    delay(1000);
+    //Cloud_sendData();
   }
 
    // ===== Handle STOP from any page =====
 
-  if (HMI_stopRequested())
+  if (HMI_stopRequested()) // Stopped Pressed
   {
     Serial.println("STOP requested – homing and stopping motors.");
     plotter.goHome();
 
     HMI_clearStop();
     HMI_clearDesignRequests();
-  }
-
- 
-
-  
+  } 
 ;}

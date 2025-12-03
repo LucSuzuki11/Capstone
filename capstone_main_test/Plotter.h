@@ -21,7 +21,7 @@ constexpr long PAN_CENTER_X            = 0;      // pan center X in steps
 constexpr long PAN_CENTER_Y            = 0;      // pan center Y in steps
 constexpr long PAN_EDGE_MARGIN_STEPS   = 300;    // keep away from rim
 constexpr long SITE_SPACING_STEPS      = 6000;   // hex ring spacing
-constexpr uint16_t DISPENSE_MS         = 100;    // (not used directly now)
+constexpr uint16_t DISPENSE_MS         = 4000;    // (not used directly now)
 constexpr uint16_t FILL_MS             = 2000;   // time to fill at origin
 constexpr float HEX_START_ANGLE_RAD    = 0.0f;
 
@@ -74,7 +74,7 @@ public:
   void closeValve();
 
   // Path operations
-  void tracePath(const Point *pts, size_t count);
+  void tracePath(const Point *pts, size_t count, int shape);
 
   // Single-site dispense
   void dispenseOnce(const Point &p, uint16_t dwellMs);

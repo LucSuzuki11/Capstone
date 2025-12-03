@@ -1,7 +1,7 @@
 #include "cloud.h"
-
 #include <PubSubClient.h>
-#include "WiFiEsp.h"
+#//include "WiFiEsp.h"
+#include <WiFiEspAT.h>
 #include "Adafruit_VL53L0X.h"
 
 #ifndef HAVE_HWSERIAL1
@@ -9,8 +9,8 @@
 static SoftwareSerial Serial1(18, 19); // RX, TX
 #endif
 
-// MQTT / WiFi config
-static const char *brokerAddress = "broker.hivemq.com";
+// ======== MQTT + WiFi Config ========
+static const char *brokerAddress = "test.mosquitto.org";
 static const char *mqtt_topic    = "4ID3_Group3/dispense";
 static uint16_t    addressPort   = 1883;
 static const char *clientID      = "ESP01";
@@ -21,16 +21,15 @@ static char ssid[] = "Learning Factory";
 static char pass[] = "Factory2";
 
 static int status           = WL_IDLE_STATUS;
-static float totalDistance  = 250.0f;
+static float totalDistance  = 150.0f;
 static bool systemStatus    = false;
 
-// Hardware objects
-static WiFiEspClient wifiClient;
+// ======== Hardware Objects ========
+static WiFiClient wifiClient;
 static PubSubClient  client(wifiClient);
 static Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
-// ---- Internal helpers ----
-
+// ======== Internal Helpers ========
 void checkClient(){
   client.loop();
 }
@@ -71,6 +70,9 @@ static uint16_t getMeasurement()
 
 static uint16_t getBatterLevel()
 {
+  if (getMeasurement()>totalDistance){
+    return 0;
+  }
   return (uint16_t)(totalDistance - getMeasurement());
 }
 
@@ -120,8 +122,7 @@ void cloudReconnect() {
 //   }
 // }
 
-// ---- Public API ----
-
+// ======== Public API ========
 void Cloud_init()
 {
   // initialize ESP module
@@ -193,20 +194,30 @@ void Cloud_sendData()
 
   if (!client.connected())
   {
-    cloudReconnect();
+    cloudReconnect(); 
   }
-  if (!client.loop())
-    client.connect("ESP8266Client");
-  // Publish the data to the associated topics
 
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi NOT connected!");
-  } 
+  // 3. Publish only if connected
+  if (client.connected())
+  {
+    client.publish("Capstone/BatterLevel", String(batterLevelPercent).c_str()); 
+    Serial.println("Published data.");
+  }
 
+  // if (!client.connected())
+  // {
+  //   cloudReconnect();
+  // }
+  // if (!client.loop())
+  //   client.connect("wifiClient");
+  // // Publish the data to the associated topics
 
+  // if (WiFi.status() != WL_CONNECTED) {
+  //   Serial.println("WiFi NOT connected!");
+  // } 
 
-  client.publish("Capstone/BatterLevel", String(batterLevelPercent).c_str());
-  Serial.println("Published data.");
+  // client.publish("Capstone/BatterLevel", String(batterLevelPercent).c_str());
+  // Serial.println("Published data.");
 }
 
 // void Cloud_sendData()

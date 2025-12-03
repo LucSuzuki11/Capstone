@@ -1,6 +1,7 @@
 #include "Plotter.h"
 #include "HMI.h"
 #include "pins.h"
+#include "cloud.h"
 
 // ---- Internal helpers (file-local) ----
 static long calculateHexRadius(long panRadius, long edgeMargin, long siteSpacing)
@@ -27,7 +28,6 @@ static uint8_t generateHexPoints(uint8_t n, const Point &center, long radius, fl
 }
 
 // ---------- Plotter implementation ----------
-
 Plotter::Plotter(AccelStepper &x, AccelStepper &y, AccelStepper &z, AccelStepper &val, MultiStepper &group) : x_(x), y_(y), z_(z), val_(val), group_(group){}
 
 void Plotter::begin()
@@ -151,7 +151,6 @@ void Plotter::goHome()
   {
     moveToAll(0, 0, Z_UP_POS, (currentValvePos));
   }
-  
 }
 
 // ---------- Design helpers ----------
@@ -183,7 +182,7 @@ uint8_t Plotter::makeBatchLayout(uint8_t n, const Point &panCenter, long panRadi
 
 // ---------- Trace & batch ----------
 
-void Plotter::tracePath(const Point *pts, size_t count)
+void Plotter::tracePath(const Point *pts, size_t count, int shape)
 {
   if (!pts || count == 0) return;
 
@@ -201,6 +200,7 @@ void Plotter::tracePath(const Point *pts, size_t count)
   // Follow remaining points
   for (size_t i = 1; i < count; ++i)
   {
+    checkClient();
     HMI_poll();
     if(HMI_stopRequested()) { return; }
     moveToXY(pts[i]);
@@ -209,7 +209,19 @@ void Plotter::tracePath(const Point *pts, size_t count)
   moveToXY(pts[0]);
 
   // Return to origin and fill
-  moveToXY({SQUARE_SIZE_STEPS/2, SQUARE_SIZE_STEPS/2});
+  if (shape == 0)
+  {
+    moveToXY({SQUARE_SIZE_STEPS/2, SQUARE_SIZE_STEPS/2});
+  }
+  else if (shape == 1)
+  {
+    moveToXY({TRI_SIDE_STEPS/2, TRI_SIDE_STEPS/3});
+  }
+  else 
+  {
+    goHome();
+  }
+  
   lowerTower();
   openValve();
   delay(FILL_MS);
@@ -239,6 +251,7 @@ void Plotter::dispenseBatch(uint8_t n, const Point &panCenter, long panRadius, l
   for (uint8_t i = 0; i < m; ++i)
   {
     HMI_poll();
+    checkClient();
     if(HMI_stopRequested()) { return; }
 
     liftTower();
@@ -249,7 +262,7 @@ void Plotter::dispenseBatch(uint8_t n, const Point &panCenter, long panRadius, l
     delay(openMs);
     closeValve();
 
-    liftTower();
+    //liftTower();
   }
 
   moveToXY({0, 0});
